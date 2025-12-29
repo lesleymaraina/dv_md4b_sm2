@@ -1,0 +1,644 @@
+---
+title: "Building a shiny app : from static plot to reactive dashboard"
+author: "<br><br><span style='font-size:25px;'><strong>Lesley Chapman Hannah, Ph.D., M.S.</strong></span><br>College of Graduate Studies<br>Northeast Ohio Medical University"
+
+format: 
+  revealjs:
+    #theme: solarized
+    css: style.css
+    slide-number: true
+    chalkboard: 
+      buttons: false
+    preview-links: auto
+    logo: images/Flame.jpg
+    #css: styles.css
+    
+---
+
+## <span style="font-size:80%">Overview: Building a Biomedical Shiny App in Small, Testable Pieces</span> {.smaller}
+
+- **Shiny app**: interactive web application built in R that allows users to adjust inputs (controls or parameters) through a web browser and immediately see the corresponding outputs (plots, summaries, tables, models) update in response 
+
+- Shiny functions by using reactive programming, which automatically tracks and updates dependencies between inputs and outputs so that only the necessary computations are re-run when something changes
+
+- Python alternative: Dash/Plotly
+
+
+::: footer
+
+:::
+
+## <span style="font-size:80%">Shiny Apps: Core Concepts</span> {.smaller}
+
+- The central idea is that a Shiny app is simply a structured way of connecting three things:
+
+  - Inputs — parameters that define the scientific question
+  - Computations — data transformations and statistical summaries
+  - Outputs — visualizations or tables that expose results
+
+::: footer
+
+:::
+
+## <span style="font-size:80%">Shiny App Parameters</span> {.smaller}
+
+Shiny app - user-controlled parameters exposed through a web interface
+
+- **Inputs** :   knobs, sliders, checkboxes, or text fields that users interact with (e.g., selecting a cohort, changing thresholds)
+- **Reactivity** : Shiny monitors how outputs depend on inputs so that when an input changes, it knows what needs to be recomputed and what can stay the same without you telling it explicitly
+- **Outputs**: results displayed in the browser: interactive plots, tables, statistics, or even downloadable files
+
+::: footer
+
+:::
+
+
+## <span style="font-size:80%">Shiny App Under the Hood</span> {.smaller}
+
+- **UI (User Interface)**:  the form where users specify parameters (like filters, thresholds, selections) [code: R, HTML-like layout functions]
+
+- **Server logic**:  R code that reacts to changes in the UI and generates updated outputs [code: R]
+
+- **Reactive expressions**: code blocks that automatically update when their inputs change, similar to “if X changes, re-compute Y” [code: R]
+
+
+::: footer
+
+:::
+
+## <span style="font-size:80%">Shiny as a workflow</span> {.smaller}
+
+Shiny app is a direct extension of a static analysis pipeline
+
+In a static figure, these steps are considered:
+
+- Defined cohort  (e.g., age range, mutation status)
+- Summary plot and statistics (e.g., survival distributions, counts)
+- Plot to summarize statistics
+
+Shiny externalizes the parameters so that these features can be  changed interactively
+
+
+::: footer
+
+:::
+
+
+## <span style="font-size:80%">Recommended R Shiny Workflow Approach</span> {.smaller}
+
+- Start with a fully working static plot
+- Wrap it in a minimal Shiny scaffold
+- Introduce one input at a time
+- Verify that each change produces the expected downstream behavior
+
+::: footer
+:::
+
+
+## <span style="font-size:80%">Dataset introduction: Uterine Cancer Dataset</span> {.smaller}
+
+- Uterine corpus endometrial cancer is a malignancy arising from the endometrial lining of the uterus a
+- Incidence has increased over time, in part due to aging populations and rising obesity prevalence.
+- Uterine Corpus Endometrial Carcinoma (UCEC) cohort dataset : harmonized TCGA clinical and molecular data with downstream computational annotations [source: LinkedOmics]
+
+::: footer
+:::
+
+## <span style="font-size:80%">Dataset introduction: Uterine Cancer Dataset</span> {.smaller}
+
+Data Characteristics [select]
+
+- **Patient-level clinical metadata**: age, stage, tumor size, histologic grade, BMI
+- **Time-to-event outcomes with censoring**: overall survival and progression-free survival
+- **Feature-engineered molecular summaries**: mutation indicators, immune deconvolution scores, pathway activity scores
+- **Observational cohort**: no randomization or experimental intervention
+
+::: footer
+:::
+
+## <span style="font-size:80%">Dataset introduction: Uterine Cancer Dataset</span> {.smaller}
+
+- Survival heterogeneity in endometrial cancer is well documented across:
+
+  - clinical stage
+  - tumor grade
+  - molecular subtype
+
+- Large consortia datasets such as TCGA enable systematic comparison of these patterns across patients rather than individual case series
+- **Task**: Create a dashboard to summarize select features within the Uterine Corpus Endometrial Carcinoma (UCEC) cohort dataset
+
+
+::: footer
+:::
+
+## <span style="font-size:80%">Recommended R Shiny Workflow Approach</span> {.smaller}
+
+- **Start with a fully working static plot**
+- Wrap it in a minimal Shiny scaffold
+- Introduce one input at a time
+- Verify that each change produces the expected downstream behavior
+
+::: footer
+:::
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+</style>
+
+## <span style="font-size:80%">Static R Plot</span> {.smaller}
+
+<div style="font-size:0.65em;">
+
+- Read in data
+- Generate static box and whisker plot to summarize tumor size by stage
+
+</div>
+
+```r
+library(tidyverse)
+
+ucec <- read_csv(
+  "uterine_cancer_dataset.csv",
+  show_col_types = FALSE
+) |>
+  select(case_id, Age, Stage, Tumor_Size_cm) |>
+  filter(!is.na(Age), !is.na(Stage), !is.na(Tumor_Size_cm))
+
+  ggplot(ucec, aes(x = Stage, y = Tumor_Size_cm)) +
+  geom_boxplot(alpha = 0.85) +
+  theme_minimal() +
+  labs(title = "Tumor Size by Stage", x = "Stage", y = "Tumor size (cm)")
+```
+
+::: footer
+ 
+:::
+
+
+<style>
+.tiny-table table { font-size: 0.8em; }        /* adjust as needed (0.8–0.9em) */
+.tiny-table figcaption, .tiny-table .table-caption { font-size: 0.75em; }
+</style>
+
+## <span style="font-size:60%">Static R Plot</span> {.smaller}
+
+
+::: columns
+::: {.column .small}
+
+- Read in data
+- Generate static box and whisker plot to summarize tumor size by stage
+
+
+:::
+::: column
+
+```{r}
+#| fig-width: 8
+#| fig-height: 9
+
+library(tidyverse)
+
+ucec <- read_csv(
+  "uterine_cancer_dataset.csv",
+  show_col_types = FALSE
+) |>
+  select(case_id, Age, Stage, Tumor_Size_cm) |>
+  filter(!is.na(Age), !is.na(Stage), !is.na(Tumor_Size_cm))
+
+  ggplot(ucec, aes(x = Stage, y = Tumor_Size_cm)) +
+  geom_boxplot(alpha = 0.85) +
+  theme_minimal() +
+  labs(title = "Tumor Size by Stage", x = "Stage", y = "Tumor size (cm)")
+
+```
+:::
+:::
+
+
+<style>
+.tiny-table table { font-size: 0.8em; }        /* adjust as needed (0.8–0.9em) */
+.tiny-table figcaption, .tiny-table .table-caption { font-size: 0.75em; }
+</style>
+
+## <span style="font-size:80%">Recommended R Shiny Workflow Approach</span> {.smaller}
+
+- Start with a fully working static plot
+- **Wrap it in a minimal Shiny scaffold**
+- Introduce one input at a time
+- Verify that each change produces the expected downstream behavior
+
+::: footer
+:::
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 520px;
+  overflow-y: auto;
+}
+</style>
+
+## <span style="font-size:80%">Wrap in a minimal Shiny scaffold</span> {.smaller}
+
+<div style="font-size:0.65em;">
+
+
+</div>
+
+```r
+library(shiny)
+library(tidyverse)
+
+# ---- Read data once ----
+ucec <- read_csv(
+  "uterine_cancer_dataset.csv",
+  show_col_types = FALSE
+) |>
+  select(case_id, Age, Stage, Tumor_Size_cm) |>
+  filter(!is.na(Age), !is.na(Stage), !is.na(Tumor_Size_cm))
+
+ui <- fluidPage(
+  titlePanel("UCEC Tumor Size Dashboard (Minimal App)"),
+  plotOutput("size_plot")
+)
+
+server <- function(input, output, session) {
+  output$size_plot <- renderPlot({
+    ggplot(ucec, aes(x = Stage, y = Tumor_Size_cm)) +
+      geom_boxplot(alpha = 0.85) +
+      theme_minimal() +
+      labs(x = "Stage", y = "Tumor size (cm)")
+  })
+}
+
+shinyApp(ui, server)
+```
+
+::: footer
+ 
+:::
+
+
+<style>
+.tiny-table table { font-size: 0.8em; }        /* adjust as needed (0.8–0.9em) */
+.tiny-table figcaption, .tiny-table .table-caption { font-size: 0.75em; }
+</style>
+
+
+
+## <span style="font-size:80%">Recommended R Shiny Workflow Approach</span> {.smaller}
+
+- Start with a fully working static plot
+- Wrap it in a minimal Shiny scaffold
+- **Introduce one input at a time**
+- Verify that each change produces the expected downstream behavior
+
+::: footer
+:::
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 520px;
+  overflow-y: auto;
+}
+</style>
+
+## <span style="font-size:80%">Feature 1: Add a single input</span> {.smaller}
+
+<div style="font-size:0.65em;">
+
+- Filter input by a single parameter (i.e.: age)
+- Use a feature such as a button or slider to change user view
+
+
+</div>
+
+```r
+sliderInput(
+  "age_range",
+  "Age at diagnosis",
+  min = floor(min(ucec$Age)),
+  max = ceiling(max(ucec$Age)),
+  value = c(50, 80)
+)
+```
+
+::: footer
+ 
+:::
+
+
+<style>
+.tiny-table table { font-size: 0.8em; }        /* adjust as needed (0.8–0.9em) */
+.tiny-table figcaption, .tiny-table .table-caption { font-size: 0.75em; }
+</style>
+
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 520px;
+  overflow-y: auto;
+}
+</style>
+
+## <span style="font-size:80%">Feature 2: Build a reactive graph</span> {.smaller}
+
+<div style="font-size:0.65em;">
+
+- Shiny is a reactive programming system that automatically tracks dependencies and updates outputs 
+- Shiny allows the user to declare relationships between values
+- Shiny constructs a dependency graph
+- As inputs are updated, Shiny recomputes only what’s necessary to render a new UI
+
+
+
+</div>
+
+```r
+output$size_plot <- renderPlot({
+  df <- ucec |>
+    filter(Age >= input$age_range[1], Age <= input$age_range[2])
+
+  ggplot(df, aes(Stage, Tumor_Size_cm)) +
+    geom_boxplot(alpha = 0.85) +
+    theme_minimal()
+})
+
+
+```
+
+::: footer
+ 
+:::
+
+
+<style>
+.tiny-table table { font-size: 0.8em; }        /* adjust as needed (0.8–0.9em) */
+.tiny-table figcaption, .tiny-table .table-caption { font-size: 0.75em; }
+</style>
+
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 520px;
+  overflow-y: auto;
+}
+</style>
+
+## <span style="font-size:80%">Feature 2: Build a reactive graph</span> {.smaller}
+
+<div style="font-size:0.65em;">
+
+- Shiny reacts similarly to other UI frameworks (i.e.: React (JavaScript))
+- Reactive graph generated by Shiny is expressed directly through R code using:
+  - input$[xx] (inputs)
+  - reactive({xx}) (cached computations)
+  - render*({xx}) (outputs)
+
+
+</div>
+
+```r
+output$size_plot <- renderPlot({
+  df <- ucec |>
+    filter(Age >= input$age_range[1], Age <= input$age_range[2])
+
+  ggplot(df, aes(Stage, Tumor_Size_cm)) +
+    geom_boxplot(alpha = 0.85) +
+    theme_minimal()
+})
+
+
+```
+
+::: footer
+ 
+:::
+
+
+<style>
+.tiny-table table { font-size: 0.8em; }        /* adjust as needed (0.8–0.9em) */
+.tiny-table figcaption, .tiny-table .table-caption { font-size: 0.75em; }
+</style>
+
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+</style>
+
+## <span style="font-size:80%">Feature 2: Build a reactive graph</span> {.smaller}
+
+<div style="font-size:0.85em;">
+
+| Element | Role in the reactive graph |
+|--------|-------------|
+| `input$age_range` | source of change |
+| `filtered_data()` | code that depends on inputs |
+| `output$size_plot` | Code that depends on filtered_data() |
+</div>
+<br>
+
+```r
+output$size_plot <- renderPlot({
+  df <- ucec |>
+    filter(Age >= input$age_range[1], Age <= input$age_range[2])
+
+  ggplot(df, aes(Stage, Tumor_Size_cm)) +
+    geom_boxplot(alpha = 0.85) +
+    theme_minimal()
+})
+
+```
+
+::: footer
+ 
+:::
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+</style>
+
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+</style>
+
+## <span style="font-size:80%">Feature 3: Emphasize Feature of Interest - Add highlighting</span> {.smaller}
+
+<div style="font-size:0.95em;">
+
+- create a highlight variable inside the reactive data function
+- add derived variables inside the reactive pipeline
+
+
+</div>
+<br>
+
+```r
+filtered_data <- reactive({
+  ucec |>
+    filter(Age >= input$age_range[1], Age <= input$age_range[2]) |>
+    mutate(highlight = Stage == input$stage_highlight)
+})
+
+```
+
+::: footer
+ 
+:::
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+</style>
+
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+</style>
+
+## <span style="font-size:80%">Feature 3: Emphasize Feature of Interest - Add highlighting</span> {.smaller}
+
+<div style="font-size: 0.95em;">
+
+- Map highlight to color
+- Filtering changes whats selected within the dataset
+- Highlighting changes the visual emphasis while preserving the data context
+
+
+
+</div>
+<br>
+
+```r
+output$size_plot <- renderPlot({
+  df <- filtered_data()
+
+  ggplot(df, aes(Stage, Tumor_Size_cm, fill = highlight)) +
+    geom_boxplot(alpha = 0.85) +
+    scale_fill_manual(values = c("TRUE" = "steelblue", "FALSE" = "grey80"), guide = "none") +
+    theme_minimal() +
+    labs(
+      title = "Tumor Size by Stage",
+      subtitle = paste("Highlighted:", input$stage_highlight,
+                       "| Age:", input$age_range[1], "–", input$age_range[2])
+    )
+})
+
+```
+
+::: footer
+ 
+:::
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+</style>
+
+
+
+<style>
+
+/* ---------- CODE BOX (lower section) ---------- */
+/* Make the CODE BOX smaller without changing text size */
+pre {
+  padding: 0.6em 0.8em;
+  max-height: 220px;
+  overflow-y: auto;
+}
+</style>
+
+
+
+## <span style="font-size:80%">Summary</span> {.smaller}
+
+- Shiny extends a static biomedical analysis into an interactive system by exposing analytic parameters as user-controlled inputs while preserving the underlying dataset
+
+- Every shiny app connects three elements—inputs, computations, and outputs—mirroring the structure of a traditional analysis pipeline while allowing real-time exploration
+
+- Reactive programming is the core engine of Shiny, automatically tracking dependencies so that only the necessary computations are re-run when inputs change
+
+::: footer
+:::
+
+## <span style="font-size:80%">Summary</span> {.smaller}
+
+- Starting a new dashboard? Consider:
+
+  - Building dashboards incrementally—starting from a working static plot and adding one input feature at a time
+
+- Biomedical dashboards can function as follows:
+
+  - Expose cohort definitions, confounder adjustments, inferential mode
+
+  - [Future] Allow users to add statistical models on the backend to help others understand what conclusions the data can support
+
+
+::: footer
+:::
+
+
